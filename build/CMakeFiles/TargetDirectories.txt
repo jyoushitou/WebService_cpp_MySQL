@@ -1,0 +1,4 @@
+D:/WebServer/MySQL/build/CMakeFiles/mysql_service.dir
+D:/WebServer/MySQL/build/CMakeFiles/INSTALL.dir
+D:/WebServer/MySQL/build/CMakeFiles/ALL_BUILD.dir
+D:/WebServer/MySQL/build/CMakeFiles/ZERO_CHECK.dir

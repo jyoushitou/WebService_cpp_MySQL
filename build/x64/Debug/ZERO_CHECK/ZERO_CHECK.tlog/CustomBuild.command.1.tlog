@@ -1,0 +1,10 @@
+^D:\WEBSERVER\MYSQL\BUILD\CMAKEFILES\65B0DA34A50CB59A52337AF0D4C1F1BA\GENERATE.STAMP.RULE
+setlocal
+E:\app\Cmake\bin\cmake.exe -SD:/WebServer/MySQL -BD:/WebServer/MySQL/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file D:/WebServer/MySQL/build/mysql_service.slnx
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
