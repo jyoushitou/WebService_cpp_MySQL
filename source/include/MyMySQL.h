@@ -14,7 +14,6 @@
 #endif
 
 #include "Utils.h"          // 工具库（日志输出）
-#include "ConnectionPool.h" // 连接池
 
 namespace MySQL{
     bool Create_DataBases(MYSQL* ,std::string);     // 全局函数：检查并创建数据库（接受外部的 MYSQL* 句柄）
