@@ -202,13 +202,13 @@ cmake --build .
 ## 🔗 在 WebServer 架构中的位置
 
 ```
-GRPCGateway (60906) ──调用──► MySQL RPC (60907)
+RPCGateway (60906) ──调用──► MySQL RPC (60907)
                                  │
                                  ▼
                             MySQL 数据库
 ```
 
-GRPCGateway 不再直连 MySQL，而是通过本服务的 RPC 接口进行数据库操作，实现数据库访问的集中管理。
+RPCGateway 不再直连 MySQL，而是通过本服务的 RPC 接口进行数据库操作，实现数据库访问的集中管理。
 
 ---
 
