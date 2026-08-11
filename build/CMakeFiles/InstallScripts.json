@@ -1,7 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"D:/WebServer/MySQL/build/cmake_install.cmake"
-	],
-	"Parallel" : false
-}
