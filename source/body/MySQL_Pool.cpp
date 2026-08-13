@@ -3,7 +3,7 @@
 namespace Sql
 {
     // 单例外部构造
-    MySQLPool* MySQLPool::GetConnectionPool()
+    MySQLPool* MySQLPool::Get_ConnectionPool()
     {
         static MySQLPool pool;
         return &pool;
@@ -51,9 +51,32 @@ namespace Sql
         // 创建连接
         for (int i = 0; i < ConnectSize_init; i++)
         {
+            // 创建指针
+            Connection* conn = new Connection();
+            // 连接
+            conn->Connect(ip, port, user, password, db);
+            // 放入队列
+            ConnectionQue.push(conn);
+            // 统计数
+            ConnectionCnt++;
+        }
+    }
+
+    // 获取连接
+    Connection* MySQLPool::Get_Connection()
+    {
+        // 如果队列不为空
+        if (!ConnectionCnt != 0)
+        {
+            Connection* conn = ConnectionQue.front();
+            ConnectionQue.pop();
+            return conn;
+        }
+        else if (ConnectionCnt == 0 && ConnectionCnt <= ConnectSize_Max)
+        {
+
             Connection* conn = new Connection();
             conn->Connect(ip, port, user, password, db);
-            ConnectionQue.push(conn);
             ConnectionCnt++;
         }
     }

@@ -15,12 +15,18 @@ namespace Sql
     {
     public:
         // 获取连接池实例
-        static MySQLPool* GetConnectionPool();
+        static MySQLPool* Get_ConnectionPool();
 
         // 公有方法：初始化连接池参数
         bool init(const std::string ip, unsigned short port, const std::string user, const std::string password,
                   const std::string db, const int initSize, const int maxSize, const int ConnectSize_init,
                   const int ConnectSize_Max, const int Connect_TimeMax, const int Connect_TimeOut, const int serviceID);
+
+        // 获取连接
+        Connection* Get_Connection();
+
+        // 返回连接
+        void Push_Connection(Connection* conn);
 
     private:
         // 构造函数私有化
@@ -55,5 +61,17 @@ namespace Sql
 
         // 服务器ID
         int serviceID;
+
+        // 连接可用时唤醒等待线程
+        std::condition_variable QueueCv;
+
+        // 停止标志
+        std::atomic<bool> stop;
+        // 扫描线程
+        // 关闭因保持高并发时的额外连接连接
+        std::thread KillConnectionThread;
+
+        // 记录最后的时间戳
+        std::chrono::steady_clock::time_point lastTime;
     };
 } // namespace Sql
