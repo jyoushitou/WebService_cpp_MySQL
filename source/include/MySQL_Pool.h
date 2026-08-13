@@ -2,6 +2,7 @@
 
 #include <queue>
 #include <mutex>
+#include <stdexcept>
 
 #include <mysql.h>
 
@@ -17,14 +18,14 @@ namespace Sql
         static MySQLPool* GetConnectionPool();
 
         // 公有方法：初始化连接池参数
-        bool init(const std::string& ip, unsigned short port, const std::string& user, const std::string& password,
-                  const std::string& db, int initSize, int maxSize, int ConnectSize_init, int ConnectSize_Max,
-                  int Connect_TimeMax, int Connect_TimeOut);
+        bool init(const std::string ip, unsigned short port, const std::string user, const std::string password,
+                  const std::string db, const int initSize, const int maxSize, const int ConnectSize_init,
+                  const int ConnectSize_Max, const int Connect_TimeMax, const int Connect_TimeOut, const int serviceID);
 
     private:
         // 构造函数私有化
         // 防止外部创建新实例
-        MySQLPool() {};
+        MySQLPool();
         // 服务器ip地址
         std::string ip;
         // 服务器端口
@@ -51,5 +52,8 @@ namespace Sql
         int ConnectionCnt;
         // 维护连接队列的线程安全互斥锁
         std::mutex QueueMutex;
+
+        // 服务器ID
+        int serviceID;
     };
 } // namespace Sql
