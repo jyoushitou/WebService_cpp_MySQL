@@ -18,7 +18,7 @@ namespace Sql
         conn = nullptr;
 
         // 刷新使用时间
-        LastUsedTime = std::chrono::steady_clock::now();
+        SetUpdateLastTime();
     }
 
     // 关闭连接并析构
@@ -38,6 +38,7 @@ namespace Sql
         // 判断是否连接
         if (Connecting)
         {
+            // 关闭连接
             DisConnect();
         }
 
@@ -79,7 +80,7 @@ namespace Sql
         Connecting = true;
 
         // 更新连接状态
-        LastUsedTime = std::chrono::steady_clock::now();
+        SetUpdateLastTime();
 
         return true;
     }
@@ -117,7 +118,7 @@ namespace Sql
         }
 
         // 更新最后编辑时间
-        LastUsedTime = std::chrono::steady_clock::now();
+        SetUpdateLastTime();
 
         return true;
     }
@@ -159,7 +160,7 @@ namespace Sql
         }
 
         // 更新最后编辑时间
-        LastUsedTime = std::chrono::steady_clock::now();
+        SetUpdateLastTime();
 
         return res;
     }
@@ -198,5 +199,17 @@ namespace Sql
     {
         return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - LastUsedTime)
             .count();
+    }
+
+    // 获取连接类型
+    bool Connection::GetTempConnect()
+    {
+        return TempConnect;
+    }
+
+    // 设置更新的时间
+    void Connection::SetUpdateLastTime()
+    {
+        std::chrono::steady_clock::now();
     }
 } // namespace Sql

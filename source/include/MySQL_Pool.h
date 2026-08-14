@@ -1,9 +1,12 @@
+// sql Pool
 #pragma once
 
 #include <queue>
 #include <mutex>
-#include <stdexcept>
-
+#include <condition_variable>
+#include <thread>
+#include <atomic>
+#include <chrono>
 #include <mysql.h>
 
 #include "MySQL_Connection.h"
@@ -15,23 +18,38 @@ namespace Sql
     {
     public:
         // 获取连接池实例
-        static MySQLPool* Get_ConnectionPool();
+        static MySQLPool* GetConnectionPool();
 
         // 公有方法：初始化连接池参数
         bool init(const std::string ip, unsigned short port, const std::string user, const std::string password,
-                  const std::string db, const int initSize, const int maxSize, const int ConnectSize_init,
-                  const int ConnectSize_Max, const int Connect_TimeMax, const int Connect_TimeOut, const int serviceID);
+                  const std::string db, const int initSize, const int maxSize, const int connectsize_init,
+                  const int connectsize_max, const int connect_timemax, const int connect_timeout, const int serviceID);
 
         // 获取连接
-        Connection* Get_Connection();
+        Connection* GetConnection();
 
         // 返回连接
-        void Push_Connection(Connection* conn);
+        void ReConnection(Connection* conn);
 
     private:
         // 构造函数私有化
         // 防止外部创建新实例
         MySQLPool();
+
+        // 取消传递构造/拷贝构造
+        MySQLPool(const MySQLPool&) = delete;
+        MySQLPool& operator=(const MySQLPool&) = delete;
+
+        // 创建连接
+        Connection* CreateConnection(bool TempConnect);
+        // 关闭连接
+        void CloseConnection();
+
+        // 监控线程主循环
+        void MonitorLoop();
+
+        // ===类内数据库变量===
+
         // 服务器ip地址
         std::string ip;
         // 服务器端口
@@ -44,34 +62,32 @@ namespace Sql
         std::string db;
 
         // 初始连接量
-        int ConnectSize_init;
+        int connectsize_init;
         // 最大连接量
-        int ConnectSize_Max;
+        int connectsize_max;
         // 连接最大空闲时间
-        int Connect_TimeMax;
+        int connect_timemax;
         // 连接超时
-        int Connect_TimeOut;
+        int connect_timeout;
+
+        // ===存储消息队列===
 
         // 存储连接队列
-        std::queue<Connection*> ConnectionQue;
-        // 存储队列数量
-        int ConnectionCnt;
-        // 维护连接队列的线程安全互斥锁
-        std::mutex QueueMutex;
+        std::queue<Connection*> connectionque;
+        // 存储队列里的数量
+        int connectioncnt;
+        // 维护连接队列的安全互斥锁
+        std::mutex queuemutex;
+        // 连接不足时阻塞等待
+        std::condition_variable queuecv;
+
+        // ===监控线程===
+        // 监控线程
+        std::thread MoniterThread;
+        // 停止标志
+        std::atomic<bool> stop;
 
         // 服务器ID
         int serviceID;
-
-        // 连接可用时唤醒等待线程
-        std::condition_variable QueueCv;
-
-        // 停止标志
-        std::atomic<bool> stop;
-        // 扫描线程
-        // 关闭因保持高并发时的额外连接连接
-        std::thread KillConnectionThread;
-
-        // 记录最后的时间戳
-        std::chrono::steady_clock::time_point lastTime;
     };
 } // namespace Sql
