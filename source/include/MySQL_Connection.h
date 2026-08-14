@@ -15,38 +15,45 @@ namespace Sql
     class Connection
     {
     public:
-        // 构造初始化连接
-        Connection();
+        // 构造初始化
+        Connection(int serviceID, bool TempConnect);
         // 关闭连接并析构
         ~Connection();
 
         // 连接
-        bool Connect(const std::string ip, const unsigned short port, const std::string user,
-                     const std::string password, const std::string db, const unsigned int TimeOut);
+        bool Connect(const std::string ip, const unsigned int port, const std::string user, const std::string password,
+                     const std::string db, const unsigned int TimeOut);
 
         // 关闭连接
         bool DisConnect();
 
-        // 获取句柄
+        // 检查连接
+        bool Ping();
+
+        // 获取原始句柄
         MYSQL* GetConn();
 
-        // 是否连接
-        bool Connected();
-
-        // 更新最后修改的时间戳
-        void UpdateLastConnected();
-        // 获取空闲时间
-        unsigned long long GetSecond();
-
-        // 自定义函数
-        bool Query(const std::string);
+        // 自定义语句的函数
+        // 无返回的自定义语句
+        bool Query_NoReturn(const std::string sql);
+        // 自定义语句的函数
+        // 有返回的自定义语句
+        MYSQL_RES* Query_Return(const std::string sql);
 
     private:
         // 保存数据库的连接
         MYSQL* conn;
+
         // 判断连接状态
         bool Connecting;
+
         // 最后一次使用时间计时
         std::chrono::steady_clock::time_point LastUsedTime;
+
+        // 判断连接类型
+        bool TempConnect;
+
+        // 服务器ID
+        int serviceID;
     };
 } // namespace Sql
