@@ -186,4 +186,17 @@ namespace Sql
 
         return true;
     }
+
+    // 获取原始句柄
+    MYSQL* Connection::GetConn()
+    {
+        return conn;
+    }
+
+    // 获取最后的更新时间
+    long long Connection::GetLastSeconds()
+    {
+        return std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - LastUsedTime)
+            .count();
+    }
 } // namespace Sql

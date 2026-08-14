@@ -32,6 +32,8 @@ namespace Sql
 
         // 获取原始句柄
         MYSQL* GetConn();
+        // 获取最后的更新时间
+        long long GetLastSeconds();
 
         // 自定义语句的函数
         // 无返回的自定义语句
