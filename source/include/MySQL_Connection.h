@@ -1,6 +1,10 @@
 // sql conection
 #pragma once
 
+#ifdef _WIN32
+#include <winsock2.h>
+#endif
+
 #include <string>
 #include <chrono>
 #include <exception>
@@ -36,6 +40,20 @@ namespace Sql
 
         // 设置最后一次连接的时间
         void SetUpdateLastTime();
+
+        // 查询
+        MYSQL_RES* Select();
+
+        // 插入
+        bool Insert();
+        // 日志归档
+        bool InsertLog();
+
+        // 更新
+        bool Update();
+
+        // 删除
+        bool Delete();
 
         // 自定义语句的函数
         // 无返回的自定义语句

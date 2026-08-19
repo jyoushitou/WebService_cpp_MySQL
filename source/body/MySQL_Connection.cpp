@@ -24,10 +24,14 @@ namespace Sql
     // 关闭连接并析构
     Connection::~Connection()
     {
-        // 直接关闭
-        if (DisConnect())
+        try
         {
-            throw std::invalid_argument("关闭失败，请重试");
+            // 直接关闭
+            DisConnect();
+        }
+        catch (...)
+        {
+            Utils::Out_Err("有错误，析构失败", serviceID);
         }
     }
 
@@ -97,6 +101,8 @@ namespace Sql
         }
         // 更新状态
         Connecting = false;
+
+        return true;
     }
 
     // 自定义语句封装
@@ -210,6 +216,6 @@ namespace Sql
     // 设置更新的时间
     void Connection::SetUpdateLastTime()
     {
-        std::chrono::steady_clock::now();
+        LastUsedTime = std::chrono::steady_clock::now();
     }
 } // namespace Sql

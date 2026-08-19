@@ -1,32 +1,19 @@
-#include "MySQL_Pool.h"
-#include "ThreadPool.h"
+#include "work.h"
 
 int main()
 {
-    auto* pool = Sql::MySQLPool::GetConnectionPool();
-    pool->init("127.0.0.1", 3306, "root", "123456", "mydb",
-               6,   // initSize（此参数已闲置，可填任意值）
-               18,  // maxSize（同上）
-               6,   // ConnectSize_init 初始连接：永不回收
-               18,  // ConnectSize_Max 最大连接：动态不能超过此数
-               300, // Connect_TimeMax 动态连接空闲秒数
-               5,   // Connect_TimeOut 取连接超时秒数
-               1);  // serviceID
+    Utils::init();
 
-    ThreadPool::ThreadPool tp(6); // 6个工作线程
-
-    for (int i = 0; i < 18; ++i)
+    // 默认端口
+    int port = 60908;
+    if (!(std::cin >> port))
+    // 输入失败（管道/EOF 等）时使用默认值
     {
-        tp.enqueue(
-            [pool, i]
-            {
-                auto* conn = pool->GetConnection();
-                if (conn)
-                {
-                    mysql_query(conn->GetMysql(), "SELECT ...");
-                    pool->ReleaseConnection(conn);
-                }
-            });
+        Utils::Out_Msg("输入无效，使用默认端口 60908", serviceID);
+        std::cin.clear();
     }
-    return 0;
+
+    RunServer(port, serviceID);
+
+    Utils::Out_Msg("服务器退出", serviceID);
 }

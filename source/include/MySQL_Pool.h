@@ -7,9 +7,10 @@
 #include <thread>
 #include <atomic>
 #include <chrono>
-#include <mysql.h>
+#include <functional>
 
 #include "MySQL_Connection.h"
+#include <mysql.h>
 
 namespace Sql
 {
@@ -22,8 +23,11 @@ namespace Sql
 
         // 公有方法：初始化连接池参数
         bool init(const std::string ip, unsigned short port, const std::string user, const std::string password,
-                  const std::string db, const int initSize, const int maxSize, const int connectsize_init,
-                  const int connectsize_max, const int connect_timemax, const int connect_timeout, const int serviceID);
+                  const std::string db, const int connectsize_init, const int connectsize_max,
+                  const int connect_timemax, const int connect_timeout, const int serviceID);
+
+        // 关闭已有连接
+        bool shutdown();
 
         // 获取连接
         Connection* GetConnection();
@@ -36,6 +40,9 @@ namespace Sql
         // 防止外部创建新实例
         MySQLPool();
 
+        // 析构函数（noexcept(false) 允许析构中抛出异常）
+        ~MySQLPool() noexcept(false);
+
         // 取消传递构造/拷贝构造
         MySQLPool(const MySQLPool&) = delete;
         MySQLPool& operator=(const MySQLPool&) = delete;
@@ -43,7 +50,7 @@ namespace Sql
         // 创建连接
         Connection* CreateConnection(bool TempConnect);
         // 关闭连接
-        void CloseConnection();
+        void CloseConnection(Connection* conn);
 
         // 监控线程主循环
         void MonitorLoop();
@@ -90,4 +97,7 @@ namespace Sql
         // 服务器ID
         int serviceID;
     };
+
+    // MySQL专属任务函数类型
+    using MySQLTask = std::function<void(Connection*)>;
 } // namespace Sql
