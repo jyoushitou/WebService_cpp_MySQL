@@ -76,7 +76,7 @@ add_executable(${PROJECT_NAME}
     ../../common/cpp/body/ThreadPool.cpp
     ../../common/cpp/body/NetConnection.cpp
     ../../common/cpp/body/NetServer.cpp
-    body/work.cpp
+    body/SQLWork.cpp
     body/MySQL_Pool.cpp
     body/MySQL_Connection.cpp
 )

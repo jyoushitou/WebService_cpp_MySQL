@@ -1,4 +1,4 @@
-#include "work.h"
+#include "SQLWork.h"
 
 int main()
 {
