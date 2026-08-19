@@ -37,13 +37,7 @@
 constexpr int ConfigServiceID = 4;
 
 // 全局服务器指针，供信号处理函数使用
-inline std::shared_ptr<Net::Server::Server> g_server;
-
-// 退出标志
-inline std::atomic<bool> g_exit_flag{false};
-
-// 防止 Stop() 被多次调用的标志
-inline std::atomic<bool> g_stop_called{false};
+inline std::shared_ptr<Net::Server::Server> server_ptr;
 
 //===全局指针===
 
@@ -82,21 +76,12 @@ inline uint32_t ThreadPoolSize = 0;
 // MySQL初始化判断
 inline std::atomic<bool> InitMySQL(false);
 
-//===关闭===
+// 函数
 
-// 统一优雅退出逻辑（保证只执行一次）
-void GracefulShutdown();
-
-// Ctrl+C / SIGTERM 处理函数
-void OnSignal(int);
-
-#ifdef _WIN32
-// Windows 控制台关闭事件处理（taskkill、关闭窗口等）
-BOOL WINAPI ConsoleCtrlHandler(DWORD ctrlType);
-#endif
+// 通讯
 
 // 服务器启动函数
-void RunServer(int port = 60908, int serviceID = 2);
+void RunServer(int port = 60908);
 
 // 校验配置中心传来的参数
 bool CheckConfigMessage(const sql::sql_node& node);

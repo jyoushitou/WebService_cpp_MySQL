@@ -23,7 +23,7 @@ namespace Sql
     // 析构函数
     MySQLPool::~MySQLPool() noexcept(false)
     {
-        Utils::Out_Msg("关闭连接池中", serviceID);
+        Utils::Out::Out_Msg("关闭连接池中");
 
         // 关闭连接
         if (!shutdown())
@@ -37,7 +37,7 @@ namespace Sql
     {
         if (!conn)
         {
-            Utils::Out_Err("关闭失败", serviceID);
+            Utils::Out::Out_Err("关闭失败");
 
             return;
         }
@@ -57,9 +57,9 @@ namespace Sql
 
     bool MySQLPool::init(const std::string ip, unsigned short port, const std::string user, const std::string password,
                          const std::string db, const int connectsize_init, const int connectsize_max,
-                         const int connect_timemax, const int connect_timeout, const int serviceID)
+                         const int connect_timemax, const int connect_timeout)
     {
-        Utils::Out_Msg("初始化连接池中...", serviceID);
+        Utils::Out::Out_Msg("初始化连接池中...");
 
         // 赋MySQL服务器地址
         this->ip = ip;
@@ -81,14 +81,11 @@ namespace Sql
         // 赋超时时间
         this->connect_timeout = connect_timeout;
 
-        // 服务器ID
-        this->serviceID = serviceID;
-
-        Utils::Out_Msg("连接池初始化完成", serviceID);
+        Utils::Out::Out_Msg("连接池初始化完成");
 
         // 预创建连接
         {
-            Utils::Out_Msg("准备创建MySQL连接", serviceID);
+            Utils::Out::Out_Msg("准备创建MySQL连接");
 
             // 智能锁
             std::lock_guard<std::mutex> lock(queuemutex);
@@ -124,7 +121,7 @@ namespace Sql
                     }
                     else
                     {
-                        Utils::Out_Err("创建失败，准备重试", serviceID);
+                        Utils::Out::Out_Err("创建失败，准备重试");
 
                         return false;
                     }
@@ -145,7 +142,7 @@ namespace Sql
     Connection* MySQLPool::CreateConnection(bool TempConnect)
     {
         // 创建连接
-        Connection* connect = new Connection(serviceID, TempConnect);
+        Connection* connect = new Connection(TempConnect);
 
         // 查看句柄是否创建成功
         if (!connect->GetConn())
@@ -170,7 +167,7 @@ namespace Sql
     // 获取连接
     Connection* MySQLPool::GetConnection()
     {
-        Utils::Out_Msg("正在获取连接", serviceID);
+        Utils::Out::Out_Msg("正在获取连接");
 
         // 创建智能锁
         std::unique_lock<std::mutex> lock(queuemutex);
@@ -185,7 +182,7 @@ namespace Sql
             {
                 connectioncnt++;
 
-                Utils::Out_Msg("获取到连接！", serviceID);
+                Utils::Out::Out_Msg("获取到连接！");
 
                 return conn;
             }
@@ -202,7 +199,7 @@ namespace Sql
             // 弹出队首
             connectionque.pop();
 
-            Utils::Out_Msg("获取到连接！", serviceID);
+            Utils::Out::Out_Msg("获取到连接！");
 
             return conn;
         }
@@ -216,7 +213,7 @@ namespace Sql
         // 判断传入参数的正确性
         if (!conn)
         {
-            Utils::Out_Msg("conn传入错误", serviceID);
+            Utils::Out::Out_Msg("conn传入错误");
 
             return;
         }
@@ -224,7 +221,7 @@ namespace Sql
         // 判断是否
         if (!conn->Ping())
         {
-            Utils::Out_Msg("conn连接断开，尝试重连", serviceID);
+            Utils::Out::Out_Msg("conn连接断开，尝试重连");
 
             // 获取删除的类型
             bool TempConnect = conn->GetTempConnect();
@@ -284,7 +281,7 @@ namespace Sql
     // 关闭函数
     bool MySQLPool::shutdown()
     {
-        Utils::Out_Msg("关闭连接池中", serviceID);
+        Utils::Out::Out_Msg("关闭连接池中");
 
         // 停止监控线程
         stop = true;
@@ -311,11 +308,11 @@ namespace Sql
         }
         if (connectioncnt != 0)
         {
-            Utils::Out_Err("关闭时可能有错误", serviceID);
+            Utils::Out::Out_Err("关闭时可能有错误");
             return false;
         }
 
-        Utils::Out_Msg("连接池已关闭，可重新init", serviceID);
+        Utils::Out::Out_Msg("连接池已关闭，可重新init");
 
         return true;
     }

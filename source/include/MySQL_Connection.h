@@ -20,7 +20,7 @@ namespace Sql
     {
     public:
         // 构造初始化
-        Connection(int serviceID, bool TempConnect);
+        Connection(bool TempConnect);
         // 关闭连接并析构
         ~Connection();
 
@@ -81,8 +81,5 @@ namespace Sql
 
         // 判断连接类型
         bool TempConnect;
-
-        // 服务器ID
-        int serviceID;
     };
 } // namespace Sql

@@ -3,10 +3,8 @@
 namespace Sql
 {
     // 构造初始化连接
-    Connection::Connection(int serviceID, bool TempConnect)
+    Connection::Connection(bool TempConnect)
     {
-        // 初始化服务器ID
-        this->serviceID = serviceID;
 
         // 设置连接类型
         this->TempConnect = TempConnect;
@@ -31,7 +29,7 @@ namespace Sql
         }
         catch (...)
         {
-            Utils::Out_Err("有错误，析构失败", serviceID);
+            Utils::Out::Out_Err("有错误，析构失败");
         }
     }
 
@@ -51,7 +49,7 @@ namespace Sql
 
         if (!conn)
         {
-            Utils::Out_Err("MySQL连接失败请重连", serviceID);
+            Utils::Out::Out_Err("MySQL连接失败请重连");
             return false;
         }
 
@@ -67,7 +65,7 @@ namespace Sql
         {
             // 连接失败的处理
 
-            Utils::Out_Err(mysql_error(conn), serviceID);
+            Utils::Out::Out_Err(mysql_error(conn));
 
             // 关闭连接
             mysql_close(conn);
@@ -112,14 +110,14 @@ namespace Sql
         // 判断是否连接
         if (!Connecting || !conn)
         {
-            Utils::Out_Err("MySQL数据库未连接", serviceID);
+            Utils::Out::Out_Err("MySQL数据库未连接");
             return false;
         }
 
         // sql传入数据库
         if (mysql_query(conn, sql.c_str()) != 0)
         {
-            Utils::Out_Err(mysql_error(conn), serviceID);
+            Utils::Out::Out_Err(mysql_error(conn));
             return false;
         }
 
@@ -136,14 +134,14 @@ namespace Sql
         // 判断是否连接
         if (!Connecting || !conn)
         {
-            Utils::Out_Err("MySQL数据库未连接", serviceID);
+            Utils::Out::Out_Err("MySQL数据库未连接");
             return nullptr;
         }
 
         // sql传入数据库
         if (mysql_query(conn, sql.c_str()) != 0)
         {
-            Utils::Out_Err(mysql_error(conn), serviceID);
+            Utils::Out::Out_Err(mysql_error(conn));
             return nullptr;
         }
 
@@ -156,11 +154,11 @@ namespace Sql
             // res无但是filed有
             if (mysql_field_count(conn) > 0)
             {
-                Utils::Out_Err(mysql_error(conn), serviceID);
+                Utils::Out::Out_Err(mysql_error(conn));
                 return nullptr;
             }
 
-            Utils::Out_Err("数据库无结果", serviceID);
+            Utils::Out::Out_Err("数据库无结果");
 
             return nullptr;
         }
@@ -183,7 +181,7 @@ namespace Sql
         // 发送ping指令给MySQL
         if (mysql_ping(conn) != 0)
         {
-            Utils::Out_Err(mysql_error(conn), serviceID);
+            Utils::Out::Out_Err(mysql_error(conn));
 
             // 更新连接状态
             Connecting = false;

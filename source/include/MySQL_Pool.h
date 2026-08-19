@@ -24,7 +24,7 @@ namespace Sql
         // 公有方法：初始化连接池参数
         bool init(const std::string ip, unsigned short port, const std::string user, const std::string password,
                   const std::string db, const int connectsize_init, const int connectsize_max,
-                  const int connect_timemax, const int connect_timeout, const int serviceID);
+                  const int connect_timemax, const int connect_timeout);
 
         // 关闭已有连接
         bool shutdown();
@@ -93,9 +93,6 @@ namespace Sql
         std::thread MoniterThread;
         // 停止标志
         std::atomic<bool> stop;
-
-        // 服务器ID
-        int serviceID;
     };
 
     // MySQL专属任务函数类型
