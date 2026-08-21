@@ -16,8 +16,10 @@
 #include "NetServer.h"
 #include "Message.h"
 #include <boost/asio.hpp>
+
 #include "Common.pb.h"
 #include "MySQL.pb.h"
+#include "User.pb.h"
 
 // MySQL专属
 #include "MySQL_Connection.h"
@@ -69,6 +71,8 @@ inline uint32_t MaxSize = 0;
 inline uint32_t TimeMax = 0;
 // 断连时间
 inline uint32_t TimeOut = 0;
+// 等待连接队列数
+inline size_t Wait_Queue_Max = 10;
 
 // 线程池线程数
 inline uint32_t ThreadPoolSize = 0;
@@ -91,9 +95,20 @@ bool CheckConfigMessage(const sql::sql_node& node);
 // 启动MySQL
 void StartMySQL();
 
-// MySQL工作
-void MySQLWork(Sql::MySQLTask task);
+// 分发任务
+// TODO以后要构建
+Sql::MySQLTask BuildMySQLTask(const int& type, const std::string& msg);
 
+// 构建回复文本
+std::string recv_select(int type, MYSQL_RES* res);
+
+// 将MySQL打包成任务
+void MySQLWork(std::shared_ptr<Net::Server::Session> session, uint32_t msg_id, int node_type,
+               const std::string& request_data);
+
+// 执行任务
+void RunTaskAndReply(Sql::MySQLTask task, Sql::Connection* conn, std::shared_ptr<Net::Server::Session> session,
+                     uint32_t msg_id);
 // 停止工作
 void ShutDownMySQL();
 

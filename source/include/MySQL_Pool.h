@@ -14,6 +14,8 @@
 
 namespace Sql
 {
+    using MySQLTask = std::function<std::string(Sql::Connection*)>;
+
     // 数据库连接池
     class MySQLPool
     {
@@ -21,19 +23,32 @@ namespace Sql
         // 获取连接池实例
         static MySQLPool* GetConnectionPool();
 
-        // 公有方法：初始化连接池参数
+        // 初始化连接池参数
         bool init(const std::string ip, unsigned short port, const std::string user, const std::string password,
                   const std::string db, const int connectsize_init, const int connectsize_max,
-                  const int connect_timemax, const int connect_timeout);
+                  const int connect_timemax, const int connect_timeout, const size_t& wait_queue_max);
 
         // 关闭已有连接
         bool shutdown();
+
+        // 等待连接的回调类型（通用，不依赖任何业务）
+        using WaitCallback = std::function<void(Connection*)>;
+
+        // 连接耗尽时排队等待。连接可用时回调会被调用。
+        // 回调拿到连接后自行负责用完归还。返回 false 表示限流拒绝。
+        bool WaitForConnection(WaitCallback cb);
+
+        // 当前等待队列长度（限流用）
+        size_t WaitQueueSize();
 
         // 获取连接
         Connection* GetConnection();
 
         // 返回连接
         void ReConnection(Connection* conn);
+
+        // 请求停止监控线程并立即唤醒
+        void MySQLPool::StopMonitor();
 
     private:
         // 构造函数私有化
@@ -93,8 +108,12 @@ namespace Sql
         std::thread MoniterThread;
         // 停止标志
         std::atomic<bool> stop;
-    };
+        // 监控线程条件变量：替代裸 sleep，让 shutdown 能立即唤醒监控线程
+        std::condition_variable monitor_cv;
 
-    // MySQL专属任务函数类型
-    using MySQLTask = std::function<void(Connection*)>;
+        // 等待连接的任务队列：只存通用回调，不知道业务
+        std::queue<WaitCallback> wait_queue;
+        // 等待队列上限
+        size_t wait_queue_max = 1000;
+    };
 } // namespace Sql

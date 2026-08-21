@@ -42,29 +42,40 @@ namespace Sql
         void SetUpdateLastTime();
 
         // 查询
-        MYSQL_RES* Select();
+
+        // 全部查询
+        MYSQL_RES* Select(const std::string& row, const std::string& tables);
+        // 条件查询（一个条件）
+        MYSQL_RES* SelectWhere(const std::string& row, const std::string& tables, const std::string& where);
+        // 模糊条件查询（两个条件）
+        MYSQL_RES* SelectLike(const std::string& row, const std::string& tables, const std::string& where,
+                              const std::string& value);
 
         // 插入
-        bool Insert();
+        bool Insert(const std::string& tables, const std::string& list, const std::string& value);
+
+        // TODO
         // 日志归档
         bool InsertLog();
 
         // 更新
-        bool Update();
+        bool Update(const std::string& table, const std::string& list, const std::string& where);
 
-        // 删除
-        bool Delete();
+        // 全部删除
+        bool Delete(const std::string& table);
+        // 条件查询
+        bool DeleteWhere(const std::string& tables, const std::string& where);
 
         // 自定义语句的函数
         // 无返回的自定义语句
-        bool Query_NoReturn(const std::string sql);
+        bool QueryNoReturn(const std::string sql);
         // 自定义语句的函数
         // 有返回的自定义语句
-        MYSQL_RES* Query_Return(const std::string sql);
+        MYSQL_RES* QueryReturn(const std::string sql);
 
     private:
         // 关闭拷贝构造
-        Connection(const Connection&) = default;
+        Connection(const Connection&) = delete;
         Connection& operator=(const Connection&) = delete;
 
         // 关闭连接

@@ -1,6 +1,9 @@
 # C++ 构建产物
 build/
 
+# py测试文件
+pytest/
+
 
 # IDE 配置
 .vscode/
