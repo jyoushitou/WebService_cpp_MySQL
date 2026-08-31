@@ -48,7 +48,7 @@ namespace Sql
         void ReConnection(Connection* conn);
 
         // 请求停止监控线程并立即唤醒
-        void MySQLPool::StopMonitor();
+        void StopMonitor();
 
     private:
         // 构造函数私有化
