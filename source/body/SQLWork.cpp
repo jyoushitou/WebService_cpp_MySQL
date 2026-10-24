@@ -1,4 +1,5 @@
 #include "SQLWork.h"
+#include "Utils.h"
 
 // 配置全局服务器ID
 int Utils::serviceID = 2;
@@ -9,7 +10,7 @@ bool CheckConfigMessage(const sql::sql_node& node)
     // TODO后期使用token校验
     if (node.head().serviceid() != ConfigServiceID)
     {
-        Utils::Out::Out_Err("校验失败：来源服务ID不对");
+        Utils::Out::outErr("校验失败：来源服务ID不对");
         return false;
     }
 
@@ -17,13 +18,13 @@ bool CheckConfigMessage(const sql::sql_node& node)
     sql::sql_init init;
     if (!init.ParseFromString(node.msg()))
     {
-        Utils::Out::Out_Err("校验失败：配置解析不了");
+        Utils::Out::outErr("校验失败：配置解析不了");
         return false;
     }
 
     if (init.ip().empty() || init.port() == 0 || init.db().empty())
     {
-        Utils::Out::Out_Err("校验失败：ip/port/db 不完整");
+        Utils::Out::outErr("校验失败：ip/port/db 不完整");
         return false;
     }
 
@@ -33,7 +34,7 @@ bool CheckConfigMessage(const sql::sql_node& node)
 // 服务器启动函数
 void RunServer(int port)
 {
-    Utils::Out::Out_Msg("正在启动通讯端口");
+    Utils::Out::outMsg("正在启动通讯端口");
 
     // 注册停止回调（把本服务的清理逻辑统一注册到 Utils）
     Utils::Exit::RegisterStopCallback(

@@ -1,12 +1,20 @@
-// 冒烟测试：验证“头文件 + 链接库（.lib/.so）”这一层可以正常使用。
-// 不连接真实数据库，因此可以离线运行。
+/// @file        smoke.cpp
+/// @brief       冒烟测试：验证“头文件 + 链接库”这一层可以正常使用
+/// @author      jyoushitou
+/// @date        2026-10-24
+/// @copyright   Copyright (c) 2026
+
 #include "MySQL_Pool.h"
 #include "MySQL_Connection.h"
 
 #include <cstdio>
 
+/// @brief       测试内部实现
 namespace
 {
+    /// @brief      打印失败原因并返回失败码
+    /// @param[in]  what 失败项说明
+    /// @return     固定返回 1
     int Fail(const char* what)
     {
         std::printf("dbpool smoke test FAILED: %s\n", what);

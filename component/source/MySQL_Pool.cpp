@@ -1,8 +1,16 @@
+/// @file        MySQL_Pool.cpp
+/// @brief       MySQL 连接池实现：预创建、等待队列、监控线程
+/// @author      jyoushitou
+/// @date        2026-10-24
+/// @copyright   Copyright (c) 2026
+
 #include "MySQL_Pool.h"
 
 namespace Sql
 {
-    // 单例外部构造
+    /// @brief      获取连接池实例
+    /// @details    首次调用时构造唯一实例，之后直接返回
+    /// @return     连接池指针，保证非空
     MySQLPool* MySQLPool::GetConnectionPool()
     {
         Utils::Out::outMsg("准备构造连接池");
@@ -15,7 +23,8 @@ namespace Sql
         return &pool;
     }
 
-    // 构造函数
+    /// @brief      构造函数
+    /// @details    私有化，仅由 GetConnectionPool() 的静态实例调用
     MySQLPool::MySQLPool()
     {
         Utils::Out::outMsg("正在构造连接池");
@@ -25,7 +34,9 @@ namespace Sql
         stop = false;
     }
 
-    // 析构函数
+    /// @brief      析构函数
+    /// @details    正常情况下 shutdown() 已完成清理，这里只做防御性静默清理
+    /// @warning    noexcept(false)，允许在析构过程中抛出异常
     MySQLPool::~MySQLPool() noexcept(false)
     {
         // 正常情况下，ShutDownMySQL() 已显式调用 shutdown() 完成清理，
@@ -55,7 +66,9 @@ namespace Sql
         // 注意：不在析构中打印任何日志，避免出现在 "MySQL微服务已退出" 之后
     }
 
-    // 关闭连接
+    /// @brief      关闭并释放一条连接
+    /// @param[in]  conn 待关闭的连接，允许为 nullptr
+    /// @note       调用方需自行持有 queuemutex
     void MySQLPool::CloseConnection(Connection* conn)
     {
         Utils::Out::outMsg("关闭连接中");
@@ -76,6 +89,19 @@ namespace Sql
         Utils::Out::outMsg("关闭连接成功，当前剩余连接数" + std::to_string(connectioncnt));
     }
 
+    /// @brief      初始化连接池
+    /// @details    保存参数、预创建初始连接并启动监控线程
+    /// @param[in]  ip               数据库地址
+    /// @param[in]  port             数据库端口
+    /// @param[in]  user             数据库账号
+    /// @param[in]  password         数据库密码
+    /// @param[in]  db               数据库名
+    /// @param[in]  connectsize_init 预创建连接数
+    /// @param[in]  connectsize_max  最大连接数
+    /// @param[in]  connect_timemax  最大空闲时间（秒）
+    /// @param[in]  connect_timeout  连接超时（秒）
+    /// @param[in]  wait_queue_max   等待队列上限
+    /// @return     true 初始化成功；false 预创建连接失败
     bool MySQLPool::init(const std::string ip, unsigned short port, const std::string user, const std::string password,
                          const std::string db, const int connectsize_init, const int connectsize_max,
                          const int connect_timemax, const int connect_timeout, const size_t& wait_queue_max)
@@ -167,7 +193,9 @@ namespace Sql
         return true;
     }
 
-    // 创建连接
+    /// @brief      创建一条连接
+    /// @param[in]  TempConnect true 临时连接；false 常驻连接
+    /// @return     创建成功的连接；失败返回 nullptr
     Connection* MySQLPool::CreateConnection(bool TempConnect)
     {
         Utils::Out::outMsg("创建连接中");
@@ -207,7 +235,9 @@ namespace Sql
         return connect;
     }
 
-    // 获取连接
+    /// @brief      获取一条连接
+    /// @details    优先取空闲连接；没有空闲且未达上限时临时创建
+    /// @return     连接对象；池空且已达上限时返回 nullptr
     Connection* MySQLPool::GetConnection()
     {
         Utils::Out::outMsg("正在获取连接");
@@ -250,7 +280,10 @@ namespace Sql
         return nullptr;
     }
 
-    // 还连接
+    /// @brief      归还连接
+    /// @details    先 Ping 校验；失效则销毁重建；有等待者时直接交给等待者
+    /// @param[in]  conn 待归还的连接，允许为 nullptr
+    /// @warning    归还后不得再使用该指针
     void MySQLPool::ReConnection(Connection* conn)
     {
         Utils::Out::outMsg("校验归还的连接");
@@ -312,7 +345,9 @@ namespace Sql
         }
     }
 
-    // 监控线程
+    /// @brief      监控线程主循环
+    /// @details    按间隔巡检，回收空闲时间超过 connect_timemax 的临时连接
+    /// @note       等待期间通过 monitor_cv 释放锁，可被 StopMonitor() 立即唤醒
     void MySQLPool::MonitorLoop()
     {
         // 整个循环用一个 unique_lock 持有互斥锁
@@ -361,7 +396,8 @@ namespace Sql
         }
     }
 
-    // 请求停止监控线程并立即唤醒
+    /// @brief      请求停止监控线程
+    /// @details    置停止标志并立即唤醒监控线程，不等待其退出
     void MySQLPool::StopMonitor()
     {
         Utils::Out::outMsg("请求停止监控线程");
@@ -377,7 +413,10 @@ namespace Sql
         monitor_cv.notify_all();
     }
 
-    // 关闭函数
+    /// @brief      关闭连接池
+    /// @details    停止监控线程并关闭池内所有空闲连接
+    /// @return     true 关闭成功；false 仍有连接未归还
+    /// @warning    关闭后池不可再用，重新使用前需再次 init()
     bool MySQLPool::shutdown()
     {
         Utils::Out::outMsg("关闭连接池中");
@@ -420,7 +459,11 @@ namespace Sql
         return true;
     }
 
-    // 排队等待连接
+    /// @brief      排队等待连接
+    /// @details    连接耗尽时把回调放入等待队列，有连接归还时优先交给它
+    /// @param[in]  cb 拿到连接后的回调
+    /// @return     true 已入队；false 队列已满，被限流拒绝
+    /// @warning    回调内部用完必须调用 ReConnection()，且不能再阻塞等待连接
     bool MySQLPool::WaitForConnection(WaitCallback cb)
     {
         Utils::Out::outMsg("进入队列，准备检查是否队列已满");
@@ -444,7 +487,8 @@ namespace Sql
         return true;
     }
 
-    // 等待队列长度
+    /// @brief      获取当前等待队列长度
+    /// @return     队列中的回调数量
     size_t MySQLPool::WaitQueueSize()
     {
         std::lock_guard<std::mutex> lock(queuemutex);
