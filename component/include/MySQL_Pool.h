@@ -8,6 +8,8 @@
 #include <atomic>
 #include <chrono>
 #include <functional>
+#include <algorithm>
+#include <string>
 
 #include "MySQL_Connection.h"
 #include <mysql.h>

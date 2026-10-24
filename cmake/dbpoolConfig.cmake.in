@@ -1,0 +1,27 @@
+@PACKAGE_INIT@
+
+# ============================================================================
+# dbpool 的 CMake 包配置
+#   用法：find_package(dbpool CONFIG REQUIRED)
+#         target_link_libraries(app PRIVATE dbpool::dbpool)
+# ============================================================================
+
+include(CMakeFindDependencyMacro)
+
+find_dependency(Threads)
+find_dependency(Utils CONFIG)
+
+# FindMySQLClient.cmake 与本文件安装在一起，保证消费者无需自行安装查找模块
+set(_dbpool_saved_module_path "${CMAKE_MODULE_PATH}")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}")
+find_dependency(MySQLClient)
+set(CMAKE_MODULE_PATH "${_dbpool_saved_module_path}")
+unset(_dbpool_saved_module_path)
+
+include("${CMAKE_CURRENT_LIST_DIR}/dbpoolTargets.cmake")
+
+# 便利变量：系统安装的 MySQL 客户端 DLL 路径（可能为空）。
+# Windows 上 dbpool.dll 依赖 libmysql.dll，发布时需要把它放到 exe 同目录或 PATH。
+set(dbpool_MYSQL_RUNTIME_DLL "${MySQLClient_RUNTIME_DLL}")
+
+check_required_components(dbpool)

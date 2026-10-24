@@ -1,140 +1,137 @@
-cmake_minimum_required(VERSION 4.3)
-# ============================================================
-# 自动查找 vcpkg toolchain（必须在 project() 之前设置）
-# 可通过以下任一方式覆盖：
-#   1. 命令行: cmake .. -DCMAKE_TOOLCHAIN_FILE=<路径>
-#   2. 环境变量: VCPKG_ROOT=<vcpkg目录>
-# ============================================================
-if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
-    set(_vcpkg_toolchain NOTFOUND)
+# ============================================================================
+# source/CMakeLists.txt —— MySQL RPC 微服务（可选目标）
+#
+# 该可执行文件依赖仓库之外的公共组件（../../Common_CPP 或 ../../common/cpp：
+# NetServer / ThreadPool / Message / protobuf 生成代码）。公共组件缺失、或源码
+# 尚未迁移到新版 Utils 接口时，本目录默认不参与构建，只构建 dbpool 组件即可。
+#
+# 打开方式：cmake -B build -DDBPOOL_BUILD_MYSQL_SERVICE=ON
+# ============================================================================
+cmake_minimum_required(VERSION 3.20)
 
-    # 方法1: 优先使用环境变量 VCPKG_ROOT
-    if(DEFINED ENV{VCPKG_ROOT})
+# 单独在本目录配置时（cd source && cmake -B build）充当顶层工程
+if(NOT CMAKE_PROJECT_NAME)
+    if(NOT DEFINED CMAKE_TOOLCHAIN_FILE AND DEFINED ENV{VCPKG_ROOT})
         file(TO_CMAKE_PATH "$ENV{VCPKG_ROOT}" _vcpkg_root)
-        set(_vcpkg_toolchain "${_vcpkg_root}/scripts/buildsystems/vcpkg.cmake")
-        if(NOT EXISTS "${_vcpkg_toolchain}")
-            set(_vcpkg_toolchain NOTFOUND)
+        if(EXISTS "${_vcpkg_root}/scripts/buildsystems/vcpkg.cmake")
+            set(CMAKE_TOOLCHAIN_FILE "${_vcpkg_root}/scripts/buildsystems/vcpkg.cmake"
+                CACHE FILEPATH "vcpkg toolchain file")
         endif()
     endif()
 
-    # 方法2: 尝试常见安装路径
-    if(NOT _vcpkg_toolchain)
-        foreach(_path
-            "C:/vcpkg"
-            "D:/vcpkg"
-            "D:/app/vcpkg"
-            "E:/app/vcpkg"
-            "$ENV{USERPROFILE}/vcpkg")
-            set(_candidate "${_path}/scripts/buildsystems/vcpkg.cmake")
-            if(EXISTS "${_candidate}")
-                set(_vcpkg_toolchain "${_candidate}")
-                break()
-            endif()
-        endforeach()
-    endif()
+    project(SQL VERSION 1.0.0 LANGUAGES CXX)
 
-    if(_vcpkg_toolchain)
-        set(CMAKE_TOOLCHAIN_FILE "${_vcpkg_toolchain}" CACHE FILEPATH "vcpkg toolchain file")
-        message(STATUS "找到 vcpkg toolchain: ${_vcpkg_toolchain}")
-    else()
-        message(WARNING "未找到 vcpkg toolchain。\n"
-            "如果 Protobuf 查找失败，请手动指定：\n"
-            "  cmake .. -DCMAKE_TOOLCHAIN_FILE=<vcpkg目录>/scripts/buildsystems/vcpkg.cmake\n"
-            "或设置环境变量 VCPKG_ROOT=<vcpkg目录>")
-    endif()
+    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    set(CMAKE_CXX_EXTENSIONS OFF)
 endif()
 
-project(SQL VERSION 1.0.0 LANGUAGES CXX)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../cmake")
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+# ---------------------------------------------------------------------------
+# 前置检查：仓库外的公共组件
+#   · 旧布局：WebServer/common/cpp
+#   · 新布局：WebServer/Common_CPP（Net / Utils 已拆成独立仓库）
+# ---------------------------------------------------------------------------
+set(_common_dir "")
+foreach(_candidate
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../Common_CPP"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../common/cpp")
+    if(EXISTS "${_candidate}/include/Utils.h")
+        set(_common_dir "${_candidate}")
+        break()
+    endif()
+endforeach()
+
+if(NOT _common_dir)
+    message(FATAL_ERROR
+        "找不到公共组件目录（NetServer / ThreadPool / Message / protobuf 生成代码）。\n"
+        "已尝试：\n"
+        "  ${CMAKE_CURRENT_SOURCE_DIR}/../../Common_CPP\n"
+        "  ${CMAKE_CURRENT_SOURCE_DIR}/../../common/cpp\n"
+        "只构建 dbpool 组件时请使用默认配置（-DDBPOOL_BUILD_MYSQL_SERVICE=OFF）。")
+endif()
+
+# 微服务源码仍在使用旧版公共组件接口（Utils::Out::Out_Msg / Utils::Exit::RegisterStopCallback
+# / Utils::serviceID 等），而 vcpkg 里的 Utils 已改为 outMsg / registerStopCallback。
+# 这里显式拦住，避免输出一堆含义不明的编译错误。
+option(DBPOOL_ALLOW_LEGACY_SERVICE
+    "允许构建尚未迁移到新版 Utils 接口的微服务" OFF)
+if(NOT DBPOOL_ALLOW_LEGACY_SERVICE)
+    message(FATAL_ERROR
+        "微服务源码尚未迁移到新版 Utils 接口（Utils::Out::outMsg 等）。\n"
+        "迁移完成前请保持 -DDBPOOL_BUILD_MYSQL_SERVICE=OFF（默认）。\n"
+        "确认要继续尝试可加 -DDBPOOL_ALLOW_LEGACY_SERVICE=ON。")
+endif()
 
 find_package(Protobuf REQUIRED)
 find_package(Boost COMPONENTS json asio REQUIRED)
+find_package(Utils CONFIG REQUIRED)
 
-# ============================================================
-# 查找 MySQL（提供 mysql.h 与 libmysql.lib）
-# 默认路径: "C:/Program Files/MySQL/MySQL Server 8.0"
-# 可通过 -DMYSQL_ROOT="D:/path/to/mysql" 覆盖
-# ============================================================
-set(MYSQL_ROOT "C:/Program Files/MySQL/MySQL Server 8.0" CACHE PATH "MySQL 安装目录（包含 include/ 和 lib/）")
-find_path(MYSQL_INCLUDE_DIR NAMES mysql.h PATHS "${MYSQL_ROOT}/include" NO_DEFAULT_PATH)
-find_library(MYSQL_LIBRARY NAMES libmysql PATHS "${MYSQL_ROOT}/lib" NO_DEFAULT_PATH)
-if(NOT MYSQL_INCLUDE_DIR OR NOT MYSQL_LIBRARY)
-    message(FATAL_ERROR
-        "未找到 MySQL 开发库。请确认 MySQL 已安装，或指定：\n"
-        "  cmake .. -DMYSQL_ROOT=\"C:/Program Files/MySQL/MySQL Server 8.0\"\n"
-        "当前 MYSQL_ROOT = \"${MYSQL_ROOT}\"")
+# ---------------------------------------------------------------------------
+# dbpool 组件（作为子目录引入时已存在）
+# ---------------------------------------------------------------------------
+if(NOT TARGET dbpool)
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../component"
+        "${CMAKE_CURRENT_BINARY_DIR}/dbpool_component")
 endif()
 
+# 让本目录也能拿到 MySQL 客户端信息（单独配置时组件在本目录作用域之外）
+find_package(MySQLClient REQUIRED)
+
+# ---------------------------------------------------------------------------
+# 服务可执行文件
+# ---------------------------------------------------------------------------
 add_executable(${PROJECT_NAME}
     main.cpp
-    ../../common/cpp/body/Common.pb.cc
-    ../../common/cpp/body/MySQL.pb.cc
-    ../../common/cpp/body/User.pb.cc
-    ../../common/cpp/body/Utils.cpp
-    ../../common/cpp/body/ThreadPool.cpp
-    ../../common/cpp/body/NetConnection.cpp
-    ../../common/cpp/body/NetServer.cpp
-    body/SQLWork.cpp
-    body/MySQL_Pool.cpp
-    body/MySQL_Connection.cpp
-)
+    "${_common_dir}/body/Common.pb.cc"
+    "${_common_dir}/body/MySQL.pb.cc"
+    "${_common_dir}/body/User.pb.cc"
+    "${_common_dir}/body/Utils.cpp"
+    "${_common_dir}/body/ThreadPool.cpp"
+    "${_common_dir}/body/NetConnection.cpp"
+    "${_common_dir}/body/NetServer.cpp"
+    body/SQLWork.cpp)
 
-# Common.pb.cc 中 include 的是 "common/Common.pb.h"，需要 ../common
-# main.cpp 中 include 的是 "Common.pb.h"，需要 ../common/include
-# ============================================================
-# 解决 Common.pb.cc 中 #include "common/Common.pb.h" 的路径映射
-# 在构建目录下创建 include/common，存放生成的头文件副本
-# ============================================================
+# Common.pb.cc 中 include 的是 "common/Common.pb.h"，需要把生成头文件放到
+# include/common 下（保持与旧构建一致）
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/include/common")
-file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/../../common/cpp/include/Common.pb.h"
-    DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/include/common/")
+if(EXISTS "${_common_dir}/include/Common.pb.h")
+    file(COPY "${_common_dir}/include/Common.pb.h"
+        DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/include/common/")
+endif()
 
 target_include_directories(${PROJECT_NAME} PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../common/cpp/include
-    ${CMAKE_CURRENT_BINARY_DIR}/include
-    ${MYSQL_INCLUDE_DIR}
-)
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${_common_dir}/include"
+    "${CMAKE_CURRENT_BINARY_DIR}/include")
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
+    dbpool
+    Utils::Utils
     protobuf::libprotobuf
     Boost::json
-    ${MYSQL_LIBRARY}
-)
+    Boost::asio)
 
 # 避免 winsock.h 与 winsock2.h 冲突，以及 min/max 宏干扰
 if(WIN32)
     target_compile_definitions(${PROJECT_NAME} PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
 endif()
 
-# 让 MSVC 按 UTF-8 解析源码，解决 C4819 警告（中文注释/字符串）
+# MSVC 按 UTF-8 解析源码，解决 C4819（中文注释/字符串）
 if(MSVC)
     target_compile_options(${PROJECT_NAME} PRIVATE /utf-8)
 endif()
 
-# ============================================================
+# ---------------------------------------------------------------------------
 # 部署 MySQL 运行时 DLL（libmysql.dll）
-# 优先从 MySQL 的 lib/ 目录查找，其次尝试 bin/ 目录
-# 使用 copy_if_different 避免每次构建重复复制
-# ============================================================
-find_file(MYSQL_RUNTIME_DLL
-    NAMES libmysql.dll
-    PATHS "${MYSQL_ROOT}/lib" "${MYSQL_ROOT}/bin"
-    NO_DEFAULT_PATH
-)
-if(MYSQL_RUNTIME_DLL)
-    message(STATUS "找到 MySQL 运行时 DLL: ${MYSQL_RUNTIME_DLL}")
+# ---------------------------------------------------------------------------
+if(MySQLClient_RUNTIME_DLL)
     add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${MYSQL_RUNTIME_DLL}"
-        "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "${MySQLClient_RUNTIME_DLL}" "$<TARGET_FILE_DIR:${PROJECT_NAME}>"
         COMMENT "复制 libmysql.dll 到输出目录"
-    )
+        VERBATIM)
 else()
-    message(WARNING
-        "未找到 libmysql.dll（已查找 \"${MYSQL_ROOT}/lib\" 和 \"${MYSQL_ROOT}/bin\"），\n"
-        "程序运行时若缺少该 DLL 将无法启动，请确认 MySQL 安装完整或手动部署。")
+    message(STATUS "未找到 libmysql.dll，运行时请手动部署（详见 README）")
 endif()

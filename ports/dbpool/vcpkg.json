@@ -1,0 +1,20 @@
+{
+  "name": "dbpool",
+  "version": "1.0.0",
+  "description": "MySQL 连接池组件（C++17）：连接池管理 + 单连接封装，安装头文件与 CMake 包",
+  "homepage": "https://github.com/jyoushitou/cpp_MySQL",
+  "license": "MIT",
+  "supports": "!uwp",
+  "dependencies": [
+    "utils",
+    "libmysql",
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    }
+  ]
+}

@@ -61,17 +61,24 @@ MySQL RPC 微服务是 WebServer 架构中独立的**数据库接入服务**。�
 
 ```
 MySQL/
-├── source/
-│   ├── main.cpp                    # 服务入口（默认端口 60908）
-│   ├── CMakeLists.txt             # 构建配置（自动查找 vcpkg/MySQL）
+├── CMakeLists.txt                 # 顶层工程
+├── component/                     # ★ dbpool 组件（布局与 Utils 库一致）
+│   ├── CMakeLists.txt             # 库目标 / 安装导出 / 扁平交付目录
 │   ├── include/
-│   │   ├── SQLWork.h              # 全局配置、服务器/任务声明
 │   │   ├── MySQL_Connection.h     # 单条 MySQL 连接封装
 │   │   └── MySQL_Pool.h           # 连接池、等待队列、监控线程
-│   └── body/
-│       ├── SQLWork.cpp            # 服务器主循环、任务构建、限流检查
-│       ├── MySQL_Pool.cpp         # 连接池实现（预创建/回收/巡检）
-│       └── MySQL_Connection.cpp   # MySQL C API 封装（CRUD/转义）
+│   ├── source/
+│   │   ├── MySQL_Pool.cpp         # 连接池实现（预创建/回收/巡检）
+│   │   └── MySQL_Connection.cpp   # MySQL C API 封装（CRUD/转义）
+│   └── tests/                     # 冒烟测试（不连库）
+├── example/                       # ★ 独立可运行的演示程序 dbpool_demo
+├── cmake/                         # FindMySQLClient / 包配置 / 打包脚本
+├── ports/dbpool/                  # vcpkg 覆盖端口
+├── source/                        # RPC 微服务（当前默认不参与构建）
+│   ├── main.cpp                   # 服务入口（默认端口 60908）
+│   ├── include/SQLWork.h          # 全局配置、服务器/任务声明
+│   ├── body/SQLWork.cpp           # 服务器主循环、任务构建、限流检查
+│   └── CMakeLists.txt
 └── README.md
 ```
 
@@ -114,23 +121,96 @@ message sql_init {
 
 - C++17 编译器
 - MySQL 8.0（含 `include/mysql.h` 与 `lib/libmysql.lib`）
-- Boost.Asio
-- Protobuf 3.x
+- Boost.Asio、Protobuf（仅微服务目标需要）
+- **Utils** —— 统一的日志/IO 组件，已在 vcpkg 中独立管理（包名 `utils`，导入目标 `Utils::Utils`）
+
+```bash
+vcpkg install utils:x64-windows --overlay-ports=<Utils仓库>/ports
+```
 
 ### 构建
 
 ```bash
-cd MySQL/source
-cmake -B build -DMYSQL_ROOT="C:/Program Files/MySQL/MySQL Server 8.0"
+cmake -B build -G "Visual Studio 18 2026" -A x64
 cmake --build build --config Release
 ```
+
+产物：
+
+- `build/component/Release/dbpool.lib` + `dbpool.dll`（Linux 为 `libdbpool.so`）
+- `build/example/Release/dbpool_demo.exe` —— **独立可运行的演示程序**
+- `build/dbpool-1.0.0/` —— 扁平交付目录：头文件（复制）+ 库（编译产物）在同一个文件夹
 
 ### 运行
 
 ```bash
-./build/SQL.exe
-# 服务启动，监听端口 60908，等待配置中心下发配置...
+# 演示程序：初始化连接池 -> 执行查询 -> 归还 -> 关闭
+build/example/Release/dbpool_demo.exe 127.0.0.1 3306 root 123456 test
+build/example/Release/dbpool_demo.exe --help
+
+# 也可以用环境变量提供连接参数
+set MYSQL_HOST=127.0.0.1
+set MYSQL_USER=root
+set MYSQL_PASSWORD=123456
+set MYSQL_DB=test
+build/example/Release/dbpool_demo.exe
 ```
+
+> 微服务目标（`source/`，默认端口 60908）仍是旧版 Utils 接口，需先迁移再开启：
+> `cmake -B build -DDBPOOL_BUILD_MYSQL_SERVICE=ON -DDBPOOL_ALLOW_LEGACY_SERVICE=ON`
+
+---
+
+## 📦 dbpool 组件用法
+
+### 方式一：扁平目录（复制即用）
+
+`build/dbpool-1.0.0/` 里是**平铺**的头文件与库，整个目录拷走即可：
+
+```
+build/dbpool-1.0.0/
+├── MySQL_Pool.h / MySQL_Connection.h    # 复制过来的头文件
+├── dbpool.lib / dbpool.dll              # 编译产物
+├── Utils.h / Utils.lib / Utils.dll      # 依赖组件（随包附带）
+├── mysql.h / ... / mysql/               # MySQL 客户端头文件
+├── libmysql.lib / libmysql.dll
+└── README.txt                           # 目录内自带用法说明
+```
+
+```bat
+cl /std:c++17 /EHsc /I. demo.cpp /link dbpool.lib libmysql.lib Utils.lib
+```
+
+### 方式二：CMake 安装后 `find_package`
+
+```bash
+cmake --install build --config Release --prefix D:/sdk/dbpool
+```
+
+```cmake
+find_package(dbpool CONFIG REQUIRED)
+target_link_libraries(app PRIVATE dbpool::dbpool)
+```
+
+### 方式三：vcpkg 覆盖端口
+
+```bash
+vcpkg install dbpool:x64-windows ^
+  --overlay-ports=<本仓库>/ports ^
+  --overlay-ports=<Utils仓库>/ports
+```
+
+### 常用参数
+
+| 选项 | 默认 | 说明 |
+| ---- | ---- | ---- |
+| `DBPOOL_BUILD_SHARED` | `ON` | `ON` 动态库；`OFF` 静态库 |
+| `DBPOOL_BUILD_EXAMPLE` | `ON` | 构建独立演示程序 `dbpool_demo` |
+| `DBPOOL_BUILD_TESTS` | `OFF` | 构建冒烟测试 |
+| `DBPOOL_BUILD_BUNDLE` | `ON` | 生成扁平交付目录 |
+| `DBPOOL_BUNDLE_DIR` | `<build>/dbpool-<版本>` | 交付目录位置 |
+| `DBPOOL_BUNDLE_WITH_MYSQL` | `ON` | 交付目录附带 MySQL 客户端头文件/库 |
+| `DBPOOL_BUILD_MYSQL_SERVICE` | `OFF` | 构建 RPC 微服务 |
 
 ---
 
@@ -161,6 +241,8 @@ cmake --build build --config Release
 
 ## 📋 TODO
 
+- [ ] 微服务源码迁移到新版 Utils 接口（`Utils::Out::outMsg` 等），恢复默认构建
+- [ ] `NetServer` / `ThreadPool` 也拆分为独立 vcpkg 组件
 - [ ] 更多业务类型支持（注册、登录、设备管理等）
 - [ ] 日志归档（`InsertLog`）
 - [ ] 配置中心 Token 校验（当前仅校验 ServiceID）

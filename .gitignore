@@ -1,8 +1,14 @@
 # C++ 构建产物
 build/
+build-*/
+out/
 
 # py测试文件
 pytest/
+
+# 临时脚本/日志
+_*.ps1
+_*.log
 
 
 # IDE 配置
@@ -14,3 +20,11 @@ CMakeLists.txt.user
 
 # 日志
 *.log
+
+# Utils 组件的日志输出
+logs/
+
+build*
+
+# vcpkg 清单模式目录（本项目默认关闭清单模式）
+vcpkg_installed/

@@ -1,0 +1,11 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=${prefix}
+libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
+includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+
+Name: dbpool
+Description: MySQL 连接池组件（C++17，头文件 + 链接库）
+Version: @DBPOOL_VERSION@
+Libs: -L${libdir} -ldbpool
+Libs.private: -lpthread -lmysqlclient
+Cflags: -I${includedir}

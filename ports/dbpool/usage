@@ -1,0 +1,12 @@
+dbpool 提供 CMake 目标，使用方式：
+
+    find_package(dbpool CONFIG REQUIRED)
+    target_link_libraries(main PRIVATE dbpool::dbpool)
+
+头文件：
+
+    #include "MySQL_Pool.h"        // 连接池
+    #include "MySQL_Connection.h"  // 单条连接
+
+注意：dbpool 的头文件会 #include <mysql.h>，链接 dbpool::dbpool 时
+      MySQL 客户端（libmysql）会通过接口依赖自动带上。

@@ -5,12 +5,12 @@ namespace Sql
     // 单例外部构造
     MySQLPool* MySQLPool::GetConnectionPool()
     {
-        Utils::Out::Out_Msg("准备构造连接池");
+        Utils::Out::outMsg("准备构造连接池");
 
         // 静态构造
         static MySQLPool pool;
 
-        Utils::Out::Out_Msg("构造连接池成功");
+        Utils::Out::outMsg("构造连接池成功");
 
         return &pool;
     }
@@ -18,7 +18,7 @@ namespace Sql
     // 构造函数
     MySQLPool::MySQLPool()
     {
-        Utils::Out::Out_Msg("正在构造连接池");
+        Utils::Out::outMsg("正在构造连接池");
         // 初始化连接数
         connectioncnt = 0;
         // 初始化停止变量
@@ -58,11 +58,11 @@ namespace Sql
     // 关闭连接
     void MySQLPool::CloseConnection(Connection* conn)
     {
-        Utils::Out::Out_Msg("关闭连接中");
+        Utils::Out::outMsg("关闭连接中");
 
         if (!conn)
         {
-            Utils::Out::Out_Err("关闭失败");
+            Utils::Out::outErr("关闭失败");
 
             return;
         }
@@ -73,14 +73,14 @@ namespace Sql
         // 更新计数
         connectioncnt--;
 
-        Utils::Out::Out_Msg("关闭连接成功，当前剩余连接数" + std::to_string(connectioncnt));
+        Utils::Out::outMsg("关闭连接成功，当前剩余连接数" + std::to_string(connectioncnt));
     }
 
     bool MySQLPool::init(const std::string ip, unsigned short port, const std::string user, const std::string password,
                          const std::string db, const int connectsize_init, const int connectsize_max,
                          const int connect_timemax, const int connect_timeout, const size_t& wait_queue_max)
     {
-        Utils::Out::Out_Msg("初始化连接池中...");
+        Utils::Out::outMsg("初始化连接池中...");
 
         // 赋MySQL服务器地址
         this->ip = ip;
@@ -104,11 +104,11 @@ namespace Sql
         // 限流数
         this->wait_queue_max = wait_queue_max;
 
-        Utils::Out::Out_Msg("连接池初始化完成");
+        Utils::Out::outMsg("连接池初始化完成");
 
         // 预创建连接
         {
-            Utils::Out::Out_Msg("准备创建MySQL连接");
+            Utils::Out::outMsg("准备创建MySQL连接");
 
             // 智能锁
             std::lock_guard<std::mutex> lock(queuemutex);
@@ -128,7 +128,7 @@ namespace Sql
                     // 放入连接队列
                     connectionque.push(conn);
 
-                    Utils::Out::Out_Msg("连接成功，当前连接数" + std::to_string(connectioncnt));
+                    Utils::Out::outMsg("连接成功，当前连接数" + std::to_string(connectioncnt));
 
                     // 重置创建
                     DoubleCreate = false;
@@ -138,7 +138,7 @@ namespace Sql
                     // 判断是否已经尝试过了
                     if (!DoubleCreate)
                     {
-                        Utils::Out::Out_Err("创建失败，准备重试一次");
+                        Utils::Out::outErr("创建失败，准备重试一次");
                         // 没有则此次的i回退
                         i--;
 
@@ -146,7 +146,7 @@ namespace Sql
                     }
                     else
                     {
-                        Utils::Out::Out_Err("创建失败，请重试");
+                        Utils::Out::outErr("创建失败，请重试");
 
                         return false;
                     }
@@ -157,12 +157,12 @@ namespace Sql
         // 更新停止状态
         stop = false;
 
-        Utils::Out::Out_Msg("连接池创建完成，准备创建监控线程");
+        Utils::Out::outMsg("连接池创建完成，准备创建监控线程");
 
         // 创建监控线程
         MoniterThread = std::thread(&MySQLPool::MonitorLoop, this);
 
-        Utils::Out::Out_Msg("监控线程创建成功，连接池实例创建结束");
+        Utils::Out::outMsg("监控线程创建成功，连接池实例创建结束");
 
         return true;
     }
@@ -170,7 +170,7 @@ namespace Sql
     // 创建连接
     Connection* MySQLPool::CreateConnection(bool TempConnect)
     {
-        Utils::Out::Out_Msg("创建连接中");
+        Utils::Out::outMsg("创建连接中");
 
         // 创建连接
         Connection* connect = new Connection(TempConnect);
@@ -178,7 +178,7 @@ namespace Sql
         // 初始化句柄
         if (!connect->Connect(ip, port, user, password, db, connect_timeout))
         {
-            Utils::Out::Out_Msg("连接失败，删除句柄");
+            Utils::Out::outMsg("连接失败，删除句柄");
 
             // 连接失败，关闭连接
             delete connect;
@@ -186,12 +186,12 @@ namespace Sql
             return nullptr;
         }
 
-        Utils::Out::Out_Msg("创建连接成功，检查创建是否正确");
+        Utils::Out::outMsg("创建连接成功，检查创建是否正确");
 
         // 查看句柄是否创建成功
         if (!connect->GetConn())
         {
-            Utils::Out::Out_Msg("创建句柄失败，删除句柄");
+            Utils::Out::outMsg("创建句柄失败，删除句柄");
 
             // 创建失败删除句柄
             delete connect;
@@ -199,7 +199,7 @@ namespace Sql
             return nullptr;
         }
 
-        Utils::Out::Out_Msg("创建正确，创建连接结束");
+        Utils::Out::outMsg("创建正确，创建连接结束");
 
         // 连接数自增
         connectioncnt++;
@@ -210,23 +210,23 @@ namespace Sql
     // 获取连接
     Connection* MySQLPool::GetConnection()
     {
-        Utils::Out::Out_Msg("正在获取连接");
+        Utils::Out::outMsg("正在获取连接");
 
         // 创建智能锁
         std::unique_lock<std::mutex> lock(queuemutex);
 
-        Utils::Out::Out_Msg("检查是否需要额外创建连接");
+        Utils::Out::outMsg("检查是否需要额外创建连接");
 
         // 如果队列为空且小于最大连接数
         if (connectionque.empty() && connectioncnt < connectsize_max)
         {
-            Utils::Out::Out_Msg("需要额外创建连接");
+            Utils::Out::outMsg("需要额外创建连接");
             // 新建连接
             Connection* conn = CreateConnection(true);
 
             if (conn)
             {
-                Utils::Out::Out_Msg("获取到连接！");
+                Utils::Out::outMsg("获取到连接！");
 
                 return conn;
             }
@@ -235,14 +235,14 @@ namespace Sql
         // 如果连接队列有归还的句柄
         if (!connectionque.empty())
         {
-            Utils::Out::Out_Msg("当前队列有剩余连接！");
+            Utils::Out::outMsg("当前队列有剩余连接！");
 
             // 获取conn句柄
             Connection* conn = connectionque.front();
             // 弹出队首
             connectionque.pop();
 
-            Utils::Out::Out_Msg("获取到连接！");
+            Utils::Out::outMsg("获取到连接！");
 
             return conn;
         }
@@ -253,19 +253,19 @@ namespace Sql
     // 还连接
     void MySQLPool::ReConnection(Connection* conn)
     {
-        Utils::Out::Out_Msg("校验归还的连接");
+        Utils::Out::outMsg("校验归还的连接");
 
         // 校验空连接
         if (!conn)
         {
-            Utils::Out::Out_Err("归还了空连接");
+            Utils::Out::outErr("归还了空连接");
             return;
         }
 
         // 判断传入参数的正确性
         if (!conn->Ping())
         {
-            Utils::Out::Out_Msg("归还的连接错误，准备删除重新创建");
+            Utils::Out::outMsg("归还的连接错误，准备删除重新创建");
 
             // 删除此连接并重新创建
             bool TempConnect = conn->GetTempConnect();
@@ -274,7 +274,7 @@ namespace Sql
 
             if (!conn)
             {
-                Utils::Out::Out_Msg("归还的连接，重连失败");
+                Utils::Out::outMsg("归还的连接，重连失败");
                 // 重连失败，直接放弃
                 return;
             }
@@ -283,7 +283,7 @@ namespace Sql
         // 检查是否有等待者
         WaitCallback cb;
         {
-            Utils::Out::Out_Msg("检查到有连接的等待，优先给他连接");
+            Utils::Out::outMsg("检查到有连接的等待，优先给他连接");
 
             std::lock_guard<std::mutex> lock(queuemutex);
             if (!wait_queue.empty())
@@ -302,7 +302,7 @@ namespace Sql
         }
         else
         {
-            Utils::Out::Out_Msg("没有等待的消息，归还连接到连接池");
+            Utils::Out::outMsg("没有等待的消息，归还连接到连接池");
 
             // 正常入池
             std::lock_guard<std::mutex> lock(queuemutex);
@@ -335,7 +335,7 @@ namespace Sql
 
             size_t size = connectionque.size();
 
-            Utils::Out::Out_Msg("开始检查是否有已经空闲的额外连接！");
+            Utils::Out::outMsg("开始检查是否有已经空闲的额外连接！");
 
             // 此时已持有锁，直接操作 connectionque（和原来行为一致）
             for (size_t i = 0; i < size; i++)
@@ -347,7 +347,7 @@ namespace Sql
                 // 判断是否回收
                 if (conn->GetTempConnect() && connect_timemax < conn->GetLastSeconds())
                 {
-                    Utils::Out::Out_Msg("检查到一个空闲的额外队列！");
+                    Utils::Out::outMsg("检查到一个空闲的额外队列！");
 
                     CloseConnection(conn);
 
@@ -357,14 +357,14 @@ namespace Sql
                 connectionque.push(conn);
             }
 
-            Utils::Out::Out_Msg("检查完成，等待下次检查！");
+            Utils::Out::outMsg("检查完成，等待下次检查！");
         }
     }
 
     // 请求停止监控线程并立即唤醒
     void MySQLPool::StopMonitor()
     {
-        Utils::Out::Out_Msg("请求停止监控线程");
+        Utils::Out::outMsg("请求停止监控线程");
 
         {
             // 锁内设置停止标志
@@ -380,9 +380,9 @@ namespace Sql
     // 关闭函数
     bool MySQLPool::shutdown()
     {
-        Utils::Out::Out_Msg("关闭连接池中");
+        Utils::Out::outMsg("关闭连接池中");
 
-        Utils::Out::Out_Msg("停止监控线程");
+        Utils::Out::outMsg("停止监控线程");
 
         // 设置停止标志并立即唤醒监控线程
         StopMonitor();
@@ -393,7 +393,7 @@ namespace Sql
             MoniterThread.join();
         }
 
-        Utils::Out::Out_Msg("停止监控线程完成，准备关闭所有空闲连接");
+        Utils::Out::outMsg("停止监控线程完成，准备关闭所有空闲连接");
 
         // 智能互斥锁
         std::lock_guard<std::mutex> lock(queuemutex);
@@ -411,11 +411,11 @@ namespace Sql
         }
         if (connectioncnt != 0)
         {
-            Utils::Out::Out_Err("关闭时可能有错误");
+            Utils::Out::outErr("关闭时可能有错误");
             return false;
         }
 
-        Utils::Out::Out_Msg("连接池已关闭，可重新init或者关闭程序");
+        Utils::Out::outMsg("连接池已关闭，可重新init或者关闭程序");
 
         return true;
     }
@@ -423,7 +423,7 @@ namespace Sql
     // 排队等待连接
     bool MySQLPool::WaitForConnection(WaitCallback cb)
     {
-        Utils::Out::Out_Msg("进入队列，准备检查是否队列已满");
+        Utils::Out::outMsg("进入队列，准备检查是否队列已满");
 
         std::lock_guard<std::mutex> lock(queuemutex);
 
@@ -431,13 +431,13 @@ namespace Sql
         if (wait_queue.size() >= wait_queue_max)
         {
 
-            Utils::Out::Out_Msg("队列已满！返回等待信息");
+            Utils::Out::outMsg("队列已满！返回等待信息");
 
             // 队列已满返回false
             return false;
         }
 
-        Utils::Out::Out_Msg("队列未满，放入队列，准备处理");
+        Utils::Out::outMsg("队列未满，放入队列，准备处理");
 
         wait_queue.push(std::move(cb));
 

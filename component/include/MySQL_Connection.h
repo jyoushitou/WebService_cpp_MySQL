@@ -2,6 +2,9 @@
 #pragma once
 
 #ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 #include <winsock2.h>
 #endif
 
@@ -11,6 +14,7 @@
 
 #include <mysql.h>
 
+// 统一日志 / IO 组件（vcpkg 包 utils，导入目标 Utils::Utils）
 #include "Utils.h"
 
 namespace Sql

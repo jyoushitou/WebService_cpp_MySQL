@@ -6,7 +6,7 @@ namespace Sql
     Connection::Connection(bool TempConnect)
     {
 
-        Utils::Out::Out_Msg("开始初始化连接");
+        Utils::Out::outMsg("开始初始化连接");
 
         // 设置连接类型
         this->TempConnect = TempConnect;
@@ -20,13 +20,13 @@ namespace Sql
         // 刷新使用时间
         SetUpdateLastTime();
 
-        Utils::Out::Out_Msg("初始化连接完成");
+        Utils::Out::outMsg("初始化连接完成");
     }
 
     // 关闭连接并析构
     Connection::~Connection()
     {
-        Utils::Out::Out_Msg("开始析构");
+        Utils::Out::outMsg("开始析构");
         try
         {
             // 直接关闭
@@ -34,7 +34,7 @@ namespace Sql
         }
         catch (...)
         {
-            Utils::Out::Out_Err("有错误，析构失败");
+            Utils::Out::outErr("有错误，析构失败");
         }
     }
 
@@ -42,25 +42,25 @@ namespace Sql
     bool Connection::Connect(const std::string ip, const unsigned int port, const std::string user,
                              const std::string password, const std::string db, const unsigned int TimeOut)
     {
-        Utils::Out::Out_Msg("检查是否已有连接");
+        Utils::Out::outMsg("检查是否已有连接");
 
         // 判断是否连接
         if (Connecting)
         {
-            Utils::Out::Out_Msg("已有连接，关闭连接后再创建新连接");
+            Utils::Out::outMsg("已有连接，关闭连接后再创建新连接");
 
             // 关闭连接
             DisConnect();
         }
 
-        Utils::Out::Out_Msg("开始连接");
+        Utils::Out::outMsg("开始连接");
 
         // 初始化句柄
         conn = mysql_init(nullptr);
 
         if (!conn)
         {
-            Utils::Out::Out_Err("MySQL连接失败请重连");
+            Utils::Out::outErr("MySQL连接失败请重连");
             return false;
         }
 
@@ -75,18 +75,18 @@ namespace Sql
         if (!mysql_real_connect(conn, ip.c_str(), user.c_str(), password.c_str(), db.c_str(), port, nullptr, 0))
         {
             // 连接失败的处理
-            Utils::Out::Out_Err("遇到错误：" + std::string(mysql_error(conn)));
+            Utils::Out::outErr("遇到错误：" + std::string(mysql_error(conn)));
             // 关闭连接
             mysql_close(conn);
             // 指针置空
             conn = nullptr;
 
-            Utils::Out::Out_Msg("取消连接");
+            Utils::Out::outMsg("取消连接");
 
             return false;
         }
 
-        Utils::Out::Out_Msg("连接到MySQL");
+        Utils::Out::outMsg("连接到MySQL");
 
         // 设置字符串返回值
         mysql_set_character_set(conn, "utf8mb4");
@@ -103,20 +103,20 @@ namespace Sql
     // 关闭连接
     bool Connection::DisConnect()
     {
-        Utils::Out::Out_Msg("检查是否有连接");
+        Utils::Out::outMsg("检查是否有连接");
 
         if (conn)
         {
-            Utils::Out::Out_Msg("有连接，关闭连接");
+            Utils::Out::outMsg("有连接，关闭连接");
             // 关闭MySQL连接
             mysql_close(conn);
             // 重置conn
             conn = nullptr;
-            Utils::Out::Out_Msg("关闭连接成功");
+            Utils::Out::outMsg("关闭连接成功");
         }
         else
         {
-            Utils::Out::Out_Msg("没有连接");
+            Utils::Out::outMsg("没有连接");
         }
         // 更新状态
         Connecting = false;
@@ -128,24 +128,24 @@ namespace Sql
     // 无返回的自定义语句函数
     bool Connection::QueryNoReturn(const std::string sql)
     {
-        Utils::Out::Out_Msg("校验是否有连接");
+        Utils::Out::outMsg("校验是否有连接");
         // 判断是否连接
         if (!Connecting || !conn)
         {
-            Utils::Out::Out_Err("MySQL数据库未连接，请先连接");
+            Utils::Out::outErr("MySQL数据库未连接，请先连接");
             return false;
         }
 
-        Utils::Out::Out_Msg("开始进行操作");
+        Utils::Out::outMsg("开始进行操作");
 
         // sql传入数据库
         if (mysql_query(conn, sql.c_str()) != 0)
         {
-            Utils::Out::Out_Err(mysql_error(conn));
+            Utils::Out::outErr(mysql_error(conn));
             return false;
         }
 
-        Utils::Out::Out_Msg("操作完成");
+        Utils::Out::outMsg("操作完成");
 
         // 更新最后编辑时间
         SetUpdateLastTime();
@@ -157,19 +157,19 @@ namespace Sql
     // 有返回的自定义语句函数
     MYSQL_RES* Connection::QueryReturn(const std::string sql)
     {
-        Utils::Out::Out_Msg("校验是否有连接");
+        Utils::Out::outMsg("校验是否有连接");
 
         // 判断是否连接
         if (!Connecting || !conn)
         {
-            Utils::Out::Out_Err("MySQL数据库未连接");
+            Utils::Out::outErr("MySQL数据库未连接");
             return nullptr;
         }
 
         // sql传入数据库
         if (mysql_query(conn, sql.c_str()) != 0)
         {
-            Utils::Out::Out_Err(mysql_error(conn));
+            Utils::Out::outErr(mysql_error(conn));
             return nullptr;
         }
 
@@ -182,11 +182,11 @@ namespace Sql
             // res无但是filed有
             if (mysql_field_count(conn) > 0)
             {
-                Utils::Out::Out_Err(mysql_error(conn));
+                Utils::Out::outErr(mysql_error(conn));
                 return nullptr;
             }
 
-            Utils::Out::Out_Err("数据库无结果");
+            Utils::Out::outErr("数据库无结果");
 
             return nullptr;
         }
@@ -209,7 +209,7 @@ namespace Sql
         // 发送ping指令给MySQL
         if (mysql_ping(conn) != 0)
         {
-            Utils::Out::Out_Err(mysql_error(conn));
+            Utils::Out::outErr(mysql_error(conn));
 
             // 更新连接状态
             Connecting = false;
@@ -274,18 +274,21 @@ namespace Sql
         return QueryNoReturn(sql);
     }
 
+    // 更新
     bool Connection::Update(const std::string& table, const std::string& list, const std::string& where)
     {
         std::string sql = "update " + table + " set " + list + " where " + where;
         return QueryNoReturn(sql);
     }
 
+    // 全量删除
     bool Connection::Delete(const std::string& table)
     {
         std::string sql = "delete from " + table;
         return QueryNoReturn(sql);
     }
 
+    // 删除特定行
     bool Connection::DeleteWhere(const std::string& table, const std::string& where)
     {
         std::string sql = "delete from " + table + " where " + where;
